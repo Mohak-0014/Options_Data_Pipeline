@@ -30,6 +30,7 @@ class OHLCCandle:
     low: float
     close: float
     tick_count: int = 0
+    gap_filled: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -39,6 +40,7 @@ class OHLCCandle:
             "low": self.low,
             "close": self.close,
             "tick_count": self.tick_count,
+            "gap_filled": self.gap_filled,
         }
 
 

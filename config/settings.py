@@ -44,6 +44,7 @@ CANDLE_INTERVAL_MINUTES = 5
 ATR_PERIOD = 14
 ATR_PRECISION = 4  # Decimal places for ATR rounding
 TICKER_COUNT = 178
+GAP_FILL_ENABLED = True
 
 # ---------------------------------------------------------------------------
 # Write Pipeline
@@ -71,6 +72,16 @@ LATENCY_SAMPLE_SIZE = 10_000     # Rolling window for latency samples
 WS_SUBSCRIBE_BATCH_SIZE = 50
 HEARTBEAT_SILENCE_TIMEOUT_S = 30  # Trigger reconnect if no tick for 30s
 SESSION_MAX_AGE_HOURS = 12        # Re-authenticate after 12 hours
+
+# ---------------------------------------------------------------------------
+# Reconnect & Alerting
+# ---------------------------------------------------------------------------
+RECONNECT_BASE_DELAY_S = 2.0
+RECONNECT_MAX_DELAY_S = 120.0
+RECONNECT_BACKOFF_FACTOR = 2.0
+RECONNECT_MAX_ATTEMPTS = 10          # After this many attempts, stop trying and exit
+RECONNECT_JITTER = True
+RECONNECT_ALERT_THRESHOLD = 3        # Attempts before CRITICAL alert fires
 
 # ---------------------------------------------------------------------------
 # Kotak Neo API Credentials (from .env)

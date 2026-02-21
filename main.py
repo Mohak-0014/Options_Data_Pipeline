@@ -26,16 +26,27 @@ from config.settings import (
     CANDLE_INTERVAL_MINUTES,
     IST,
     WINDOW_FREEZE_MS,
+    GAP_FILL_ENABLED,
+    RECONNECT_BASE_DELAY_S,
+    RECONNECT_MAX_DELAY_S,
+    RECONNECT_BACKOFF_FACTOR,
+    RECONNECT_MAX_ATTEMPTS,
+    RECONNECT_JITTER,
+    RECONNECT_ALERT_THRESHOLD,
 )
+from config.instruments import get_all_symbols
 from config.trading_calendar import trading_calendar
 from modules.aggregator.candle_aggregator import CandleAggregator
+from modules.aggregator.gap_fill import GapFiller
 from modules.aggregator.tick_buffer import TickBuffer
+from modules.alerts.alert_manager import AlertManager
 from modules.atr.atr_engine import ATREngine
 from modules.auth.authenticator import Authenticator, AuthenticationFailed
 from modules.pipeline.write_pipeline import WritePipeline
 from modules.recovery.checkpoint_manager import CheckpointManager
 from modules.sheets.schema_manager import SchemaManager
 from modules.sheets.sheets_client import SheetsClient
+from modules.websocket.reconnect_manager import ReconnectManager
 from modules.websocket.ws_client import WSClient
 from utils.logger import get_logger
 from utils.time_utils import (
@@ -62,8 +73,21 @@ class VolatilityHarvester:
         self._atr_engine = ATREngine()
         self._sheets_client = SheetsClient()
         self._schema_manager = SchemaManager(self._sheets_client)
+        self._alert_manager = AlertManager(self._schema_manager)
         self._write_pipeline = WritePipeline(self._sheets_client, self._schema_manager)
         self._checkpoint_mgr = CheckpointManager()
+        self._gap_filler = GapFiller()
+
+        self._reconnect_manager = ReconnectManager(
+            base_delay_s=RECONNECT_BASE_DELAY_S,
+            max_delay_s=RECONNECT_MAX_DELAY_S,
+            backoff_factor=RECONNECT_BACKOFF_FACTOR,
+            max_attempts=RECONNECT_MAX_ATTEMPTS,
+            jitter=RECONNECT_JITTER,
+            alert_callback=self._alert_manager.fire,
+            alert_threshold=RECONNECT_ALERT_THRESHOLD,
+        )
+
         self._ws_client = WSClient(
             self._tick_buffer,
             self._authenticator,
@@ -166,6 +190,9 @@ class VolatilityHarvester:
         # 6. Connect WebSocket (Thread 2)
         self._ws_client.connect()
         self._ws_client.subscribe()
+        
+        # 7. Reset reconnect manager on successful startup
+        self._reconnect_manager.reset()
 
     def _run_session(self) -> None:
         """
@@ -268,6 +295,17 @@ class VolatilityHarvester:
                 self._aggregator.transition_to_next_window(next_window_start)
             return
 
+        # 🔒8: Gap-Fill Logic
+        if GAP_FILL_ENABLED:
+            candles, unfillable = self._gap_filler.fill(
+                candles, get_all_symbols(), window_start
+            )
+            if unfillable:
+                logger.warning(
+                    f"GAP_FILL_UNFILLABLE | window={window_start.time()} | "
+                    f"symbols={unfillable}"
+                )
+
         # Step 4: ATR computation
         enriched = self._atr_engine.process_batch(candles)
 
@@ -292,21 +330,15 @@ class VolatilityHarvester:
     def _handle_reconnect(self) -> None:
         """Handle WebSocket disconnection — reconnect cycle."""
         logger.warning("RECONNECT_TRIGGERED")
-
-        try:
-            self._ws_client.disconnect()
-            time_module.sleep(2)
-            self._authenticator.refresh_session()
-            self._ws_client.connect()
-            self._ws_client.subscribe()
-            logger.info("RECONNECT_SUCCESS")
-
-            self._schema_manager.log_event(
-                "WARNING", "RECONNECT",
-                details="WebSocket reconnected after silence"
-            )
-        except Exception as e:
-            logger.error(f"RECONNECT_FAILED | error={e}")
+        
+        success = self._reconnect_manager.attempt_reconnect(
+            connect_fn=self._ws_client.connect,
+            subscribe_fn=self._ws_client.subscribe,
+            refresh_fn=self._authenticator.refresh_session,
+        )
+        if not success:
+            logger.critical("RECONNECT_EXHAUSTED | initiating_shutdown")
+            self._running = False
 
     def _handle_shutdown(self, signum, frame) -> None:
         """Graceful shutdown on SIGINT/SIGTERM."""

@@ -16,6 +16,7 @@ data/fallback/
 data/scrip_master_raw.txt
 data/scrip_master_columns.txt
 *.log
+output*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

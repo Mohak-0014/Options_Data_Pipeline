@@ -38,6 +38,7 @@ class EnrichedCandle:
     tr: Optional[float]
     atr: Optional[float]
     tick_count: int
+    gap_filled: bool = False
 
     def to_row(self, row_id: str, segment: str = "") -> list:
         """Format as a Google Sheets row."""
@@ -54,6 +55,7 @@ class EnrichedCandle:
             self.tr if self.tr is not None else "",
             self.atr if self.atr is not None else "",
             "",  # volume (optional)
+            "TRUE" if self.gap_filled else "FALSE",
             get_current_ist().isoformat(),  # created_at
         ]
 
@@ -229,6 +231,7 @@ class ATREngine:
                 tr=tr,
                 atr=atr,
                 tick_count=candle.tick_count,
+                gap_filled=candle.gap_filled,
             ))
 
         logger.info(
