@@ -1,0 +1,69 @@
+.............F.........F..F..........F...............................FF. [ 65%]
+...F..........FF......................                                   [100%]
+================================== FAILURES ===================================
+_______________ TestBatchProcessing.test_batch_returns_enriched _______________
+tests\test_atr_engine.py:169: in test_batch_returns_enriched
+    enriched = engine.process_batch(candles)
+modules\atr\atr_engine.py:206: in process_batch
+    for ticker, candle in candles.items():
+E   AttributeError: 'list' object has no attribute 'items'
+__________________ TestSaveCheckpoint.test_save_creates_file __________________
+tests\test_checkpoint_manager.py:51: in test_save_creates_file
+    assert len(files) >= 1
+E   assert 0 >= 1
+E    +  where 0 = len([])
+---------------------------- Captured stdout call -----------------------------
+[2026-02-21 12:31:29] [INFO    ] [recovery.checkpoint_manager] CHECKPOINT_SAVED | window=09:15:00 | tickers=1 | confirmed=True
+_______________ TestLoadCheckpoint.test_load_when_no_checkpoint _______________
+tests\test_checkpoint_manager.py:80: in test_load_when_no_checkpoint
+    assert loaded is None
+E   AssertionError: assert {'atr_state': {}, 'last_window': '2026-02-23T09:15:00+05:30', 'saved_at': '2026-02-21T12:31:29.724469+05:30', 'sheets_write_confirmed': False} is None
+---------------------------- Captured stdout call -----------------------------
+[2026-02-21 12:31:29] [INFO    ] [recovery.checkpoint_manager] CHECKPOINT_LOADED | path=checkpoint.json | window=2026-02-23T09:15:00+05:30 | tickers=0
+_________________ TestParseRowId.test_invalid_id_returns_none _________________
+tests\test_id_generator.py:69: in test_invalid_id_returns_none
+    result = parse_row_id("BADID")
+utils\id_generator.py:49: in parse_row_id
+    raise ValueError(f"Invalid row ID format: {row_id}")
+E   ValueError: Invalid row ID format: BADID
+_________________ TestOHLCAccumulation.test_single_tick_ohlc __________________
+tests\test_tick_buffer.py:70: in test_single_tick_ohlc
+    assert candle["open"] == 2500.0
+E   TypeError: 'OHLCCandle' object is not subscriptable
+---------------------------- Captured stdout call -----------------------------
+[2026-02-21 12:31:29] [INFO    ] [aggregator.tick_buffer] SNAPSHOT | window=2026-02-23 09:15:00+05:30 | tickers=1 | late_dropped=0 | future_dropped=0
+________________ TestOHLCAccumulation.test_multiple_ticks_ohlc ________________
+tests\test_tick_buffer.py:81: in test_multiple_ticks_ohlc
+    assert candle["open"] == 100.0
+E   TypeError: 'OHLCCandle' object is not subscriptable
+---------------------------- Captured stdout call -----------------------------
+[2026-02-21 12:31:29] [INFO    ] [aggregator.tick_buffer] SNAPSHOT | window=2026-02-23 09:15:00+05:30 | tickers=1 | late_dropped=0 | future_dropped=0
+___________________ TestConcurrency.test_concurrent_updates ___________________
+tests\test_tick_buffer.py:150: in test_concurrent_updates
+    assert snap["T1"]["tick_count"] == 1000
+E   TypeError: 'OHLCCandle' object is not subscriptable
+---------------------------- Captured stdout call -----------------------------
+[2026-02-21 12:31:29] [INFO    ] [aggregator.tick_buffer] SNAPSHOT | window=2026-02-23 09:15:00+05:30 | tickers=3 | late_dropped=0 | future_dropped=0
+_____________ TestAssignTickToWindow.test_pre_market_returns_none _____________
+tests\test_time_utils.py:88: in test_pre_market_returns_none
+    result = assign_tick_to_window(tick)
+utils\time_utils.py:197: in assign_tick_to_window
+    raise ValueError(
+E   ValueError: Exchange timestamp 2026-02-23 08:00:00+05:30 is before market open 2026-02-23 09:15:00+05:30
+____________ TestAssignTickToWindow.test_post_market_returns_none _____________
+tests\test_time_utils.py:94: in test_post_market_returns_none
+    result = assign_tick_to_window(tick)
+utils\time_utils.py:219: in assign_tick_to_window
+    raise ValueError(
+E   ValueError: Exchange timestamp 2026-02-23 15:30:01+05:30 is after session close 2026-02-23 15:30:00+05:30
+=========================== short test summary info ===========================
+FAILED tests/test_atr_engine.py::TestBatchProcessing::test_batch_returns_enriched
+FAILED tests/test_checkpoint_manager.py::TestSaveCheckpoint::test_save_creates_file
+FAILED tests/test_checkpoint_manager.py::TestLoadCheckpoint::test_load_when_no_checkpoint
+FAILED tests/test_id_generator.py::TestParseRowId::test_invalid_id_returns_none
+FAILED tests/test_tick_buffer.py::TestOHLCAccumulation::test_single_tick_ohlc
+FAILED tests/test_tick_buffer.py::TestOHLCAccumulation::test_multiple_ticks_ohlc
+FAILED tests/test_tick_buffer.py::TestConcurrency::test_concurrent_updates - ...
+FAILED tests/test_time_utils.py::TestAssignTickToWindow::test_pre_market_returns_none
+FAILED tests/test_time_utils.py::TestAssignTickToWindow::test_post_market_returns_none
+9 failed, 101 passed in 0.68s
